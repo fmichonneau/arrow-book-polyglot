@@ -1,0 +1,123 @@
+
+---
+title: "Code examples in R"
+subtitle: "Translated code examples from In-Memory Analytics with Apache Arrow by Matthew Topol"
+author: François Michonneau
+format:
+  html:
+    code-fold: false
+    footnotes-hover: true
+    df-print: kable
+    toc: true
+---
+
+## Chapter 1
+
+### Setting up your shooting range
+
+This will work for most people. If you are using Linux, you have more
+options avavailable to you that are highlighted in a
+[vignette](https://arrow.apache.org/docs/r/articles/install.html) that
+comes with the `{arrow}` package.
+
+```{r}
+#| eval: false
+
+install.package("arrow")
+```
+
+```{python}
+import pyarrow as pa
+import numpy as np
+NROWS = 8192
+NCOLS = 16
+data = [pa.array(np.random.randn(NROWS)) for i in range(NCOLS)]
+cols = ['c' + str(i) for i in range(NCOLS)]
+rb = pa.RecordBatch.from_arrays(data, cols)
+print(rb.schema)
+print(rb.num_rows)
+```
+
+```{r}
+library(arrow)
+NROWS <- 8192
+NCOLS <- 16
+data <- replicate(
+  NCOLS,
+  rnorm(NROWS),
+  simplify = FALSE
+) |>
+  as.data.frame(
+    col.names = paste0("c", seq_len(NCOLS))
+  )
+rb <- record_batch(data)
+rb
+nrow(rb)
+```
+
+### Building a struct array
+
+```{python}
+archer_list = [{
+    'archer': 'Legolas',
+    'location': 'Murkwood',
+    'year': 1954,
+},{
+    'archer': 'Oliver',
+    'location': 'Star City',
+    'year': 1941,
+},{
+    'archer': 'Merida',
+    'location': 'Scotland',
+    'year': 2012,
+},{
+    'archer': 'Lara',
+    'location': 'London',
+    'year': 1996,
+},{
+    'archer': 'Artemis',
+    'location': 'Greece',
+    'year': -600,
+}]
+
+archer_type = pa.struct([('archer', pa.utf8()),
+                         ('location', pa.utf8()),
+                         ('year', pa.int16())])
+archers = pa.array(archer_list, type=archer_type)
+print(archers.type)
+print(archers)
+```
+
+```{r}
+archer_list <- tibble::tribble(
+  ~ archer,  ~ location,  ~ year,
+  "Legolas", "Murkwood",  1954,
+  "Oliver",  "Star City", 1941,
+  "Merida",  "Scotland",  2012,
+  "Lara",    "London",    1996,
+  "Artemis", "Greece",    -600
+)
+
+archer_type <- struct(archer = utf8(), location = utf8(), year = int16())
+archers <- Arrow$create(
+  archer_list,
+  type = archer_type
+)
+archers$type
+archers
+```
+
+There is not a direct equivalent between a Python dictionary in
+R. Given that Arrow works with rectangular data, we use the same data
+formatted as a tibble (constructed with the `tribble()` function for
+easier visual representation) as input.
+
+In R, Arrow struct arrays are created automatically based on the
+dimensions of the object provided to the constructor. Atomic vectors
+are converted into Arrow arrays, while data frames (and by extension
+tibbles) are converted into Arrow struct arrays.
+
+Instead of using the R6 constructor `Arrow$create()`, we could also
+have used the `as_arrow_array()` function. Note
+[issue](https://issues.apache.org/jira/browse/ARROW-17620).
+
